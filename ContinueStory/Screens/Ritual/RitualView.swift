@@ -136,6 +136,22 @@ struct RitualView: View {
                     .foregroundColor(Ink.past)
                     .fixedSize(horizontal: false, vertical: true)
 
+                if let name = p.photo, let img = Shots.load(name) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 210)
+                            .clipped()
+                            .clipShape(Chamfer(cut: 14, corners: .diagonal))
+                            .overlay(Chamfer(cut: 14, corners: .diagonal).stroke(Ink.past.opacity(0.4), lineWidth: 1))
+                        Text("pinned the day you buried it")
+                            .plateStyle(1.6, size: 9)
+                            .foregroundColor(Ink.mute)
+                    }
+                }
+
                 Plate(text: "Now end it")
 
                 PaperField(

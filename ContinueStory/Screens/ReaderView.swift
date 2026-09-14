@@ -1,10 +1,14 @@
 import SwiftUI
+import UIKit
 
 struct ReaderView: View {
     let id: UUID
 
     @EnvironmentObject private var vault: Vault
     @Environment(\.dismiss) private var dismiss
+
+    @State private var saving = false
+    @State private var saved: Bool?
 
     var body: some View {
         ZStack {
@@ -15,6 +19,17 @@ struct ReaderView: View {
                     VStack(alignment: .leading, spacing: 28) {
                         crest(p)
                         byline(p)
+
+                        if let name = p.photo, let img = Shots.load(name) {
+                            Image(uiImage: img)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 220)
+                                .clipped()
+                                .clipShape(Chamfer(cut: 16, corners: .diagonal))
+                                .overlay(Chamfer(cut: 16, corners: .diagonal).stroke(Ink.hair, lineWidth: 1))
+                        }
 
                         Text(p.opening)
                             .font(Face.story(19))
@@ -59,8 +74,49 @@ struct ReaderView: View {
                         .foregroundColor(Ink.mute)
                 }
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if let p = vault.piece(id), p.close != nil {
+                    Menu {
+                        ShareLink("Share the story", item: p.asText(signedBy: vault.author?.alias ?? "someone"))
+                        Button("Save the cover to Photos") { stash(p) }
+                    } label: {
+                        Text(saving ? "Saving" : "Share ↗")
+                            .plateStyle(1.8, size: 10)
+                            .foregroundColor(Ink.now)
+                    }
+                    .disabled(saving)
+                }
+            }
+        }
+        .alert(
+            saved == true ? "In your Photos" : "Not saved",
+            isPresented: Binding(get: { saved != nil }, set: { if !$0 { saved = nil } })
+        ) {
+            Button("Fine", role: .cancel) { saved = nil }
+        } message: {
+            Text(saved == true
+                 ? "The cover is in your camera roll."
+                 : "iOS is not letting this app add to your photo library.")
         }
         .toolbarBackground(.hidden, for: .navigationBar)
+    }
+
+    private func stash(_ p: Piece) {
+        saving = true
+        Task {
+            let shot = plaque(p)
+            let ok = shot == nil ? false : await Album.keep(shot!)
+            saving = false
+            saved = ok
+        }
+    }
+
+    @MainActor
+    private func plaque(_ p: Piece) -> UIImage? {
+        let card = Plaque(piece: p, who: vault.author?.alias ?? "someone")
+        let r = ImageRenderer(content: card)
+        r.scale = 3
+        return r.uiImage
     }
 
     private func crest(_ p: Piece) -> some View {
@@ -143,5 +199,37 @@ struct ReaderView: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .slab(cut: 18, corners: .diagonal, fill: Ink.slab.opacity(0.7), stroke: Ink.now.opacity(0.3))
+    }
+}
+
+
+private struct Plaque: View {
+    let piece: Piece
+    let who: String
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Cover(piece: piece)
+                .frame(width: 210, height: 280)
+
+            VStack(spacing: 8) {
+                Text("\(piece.drift ?? 0)")
+                    .font(Face.display(54))
+                    .foregroundColor(Ink.now)
+                Text("drift")
+                    .plateStyle(3, size: 9)
+                    .foregroundColor(Ink.mute)
+                Text(Drift.verdict(piece.drift ?? 0))
+                    .font(Face.display(20))
+                    .foregroundColor(Ink.veil)
+                    .multilineTextAlignment(.center)
+                Text("\(who) \u{00B7} \(Stamp.gap(piece.gapDays))")
+                    .plateStyle(1.6, size: 9)
+                    .foregroundColor(Ink.mute)
+            }
+        }
+        .padding(34)
+        .frame(width: 320, height: 470)
+        .background(Ink.night)
     }
 }

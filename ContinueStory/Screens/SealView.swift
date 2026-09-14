@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SealView: View {
     @EnvironmentObject private var vault: Vault
@@ -8,6 +9,8 @@ struct SealView: View {
     @State private var window: SealWindow?
     @State private var landed: Piece?
     @State private var dial = 0
+    @State private var shot: UIImage?
+    @State private var lens: UIImagePickerController.SourceType?
 
     private var spark: Spark {
         Sparks.forToday(vault.author?.tones ?? Array(Tone.allCases.prefix(3)), salt: salt)
@@ -68,6 +71,8 @@ struct SealView: View {
                     }
                 }
 
+                pinRow
+
                 VStack(alignment: .leading, spacing: 12) {
                     Plate(text: "Buried for", trailing: live.title)
                     HStack(spacing: 8) {
@@ -88,6 +93,74 @@ struct SealView: View {
             .padding(.top, 18)
             .padding(.bottom, 130)
         }
+        .fullScreenCover(item: Binding(
+            get: { lens.map(Source.init) },
+            set: { lens = $0?.kind }
+        )) { source in
+            Lens(source: source.kind) { picked in
+                if let picked { shot = picked }
+                lens = nil
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private var pinRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Plate(text: "Pin something to it", trailing: shot == nil ? "optional" : "pinned")
+
+            HStack(spacing: 12) {
+                if let shot {
+                    Image(uiImage: shot)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 92, height: 92)
+                        .clipped()
+                        .clipShape(Chamfer(cut: 10, corners: .diagonal))
+                        .overlay(Chamfer(cut: 10, corners: .diagonal).stroke(Ink.past.opacity(0.5), lineWidth: 1))
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Sealed with the words")
+                            .plateStyle(1.6, size: 9)
+                            .foregroundColor(Ink.past)
+                        Button("Take it off") { self.shot = nil }
+                            .buttonStyle(Ghost())
+                    }
+                } else {
+                    slot("Camera", tint: Ink.past) { lens = .camera }
+                    slot("Library", tint: Ink.now) { lens = .photoLibrary }
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            Text(shot == nil
+                 ? "One photo from today, buried with the opening. You see it again only when the piece comes back."
+                 : "It stays out of sight until the seal breaks.")
+                .font(Face.body(12))
+                .foregroundColor(Ink.mute)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func slot(_ text: String, tint: Color, tap: @escaping () -> Void) -> some View {
+        Button {
+            Buzz.tap()
+            tap()
+        } label: {
+            VStack(spacing: 8) {
+                Chamfer(cut: 6, corners: .all)
+                    .stroke(tint.opacity(0.7), lineWidth: 1.4)
+                    .frame(width: 22, height: 18)
+                    .overlay(Circle().stroke(tint.opacity(0.7), lineWidth: 1.4).frame(width: 9, height: 9))
+                Text(text)
+                    .plateStyle(1.4, size: 9)
+                    .foregroundColor(Ink.veil.opacity(0.85))
+            }
+            .frame(width: 92, height: 92)
+            .slab(cut: 10, corners: .diagonal, fill: Ink.slab.opacity(0.55), stroke: Ink.hair)
+        }
+        .buttonStyle(.plain)
     }
 
     private var sparkCard: some View {
@@ -135,8 +208,10 @@ struct SealView: View {
     }
 
     private func fire() {
-        let p = vault.seal(deck.draft, tone: deck.mood, spark: spark.text, window: live)
+        let kept = shot.flatMap(Shots.keep)
+        let p = vault.seal(deck.draft, tone: deck.mood, spark: spark.text, window: live, photo: kept)
         deck.draft = ""
+        shot = nil
         landed = p
         spinDial()
     }
@@ -186,4 +261,10 @@ struct SealView: View {
         }
         .padding(30)
     }
+}
+
+
+private struct Source: Identifiable {
+    let kind: UIImagePickerController.SourceType
+    var id: Int { kind.rawValue }
 }

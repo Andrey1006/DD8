@@ -46,7 +46,7 @@ final class Vault: ObservableObject {
     func piece(_ id: UUID) -> Piece? { pieces.first { $0.id == id } }
 
     @discardableResult
-    func seal(_ opening: String, tone: Tone, spark: String? = nil, window: SealWindow? = nil) -> Piece {
+    func seal(_ opening: String, tone: Tone, spark: String? = nil, window: SealWindow? = nil, photo: String? = nil) -> Piece {
         let now = Date()
         let w = window ?? author?.window ?? .standard
         let p = Piece(
@@ -55,7 +55,8 @@ final class Vault: ObservableObject {
             sealedAt: now,
             ripeAt: w.roll(from: now),
             toneAtSeal: tone,
-            spark: spark
+            spark: spark,
+            photo: photo
         )
         pieces.append(p)
         flush()
@@ -70,6 +71,14 @@ final class Vault: ObservableObject {
         pieces[i].toneAtClose = tone
         pieces[i].guess = guess?.trimmingCharacters(in: .whitespacesAndNewlines)
         pieces[i].drift = Drift.score(pieces[i])
+        Nudges.disarm(id)
+        flush()
+    }
+
+    func discard(_ id: UUID) {
+        guard let i = pieces.firstIndex(where: { $0.id == id }) else { return }
+        if let shot = pieces[i].photo { Shots.drop(shot) }
+        pieces.remove(at: i)
         Nudges.disarm(id)
         flush()
     }
@@ -99,6 +108,7 @@ final class Vault: ObservableObject {
     func burnEverything() {
         pieces = []
         author = nil
+        Shots.wipe()
         Nudges.disarmAll()
         d.removeObject(forKey: Key.pieces)
         d.removeObject(forKey: Key.author)

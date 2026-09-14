@@ -8,6 +8,7 @@ struct VaultMapView: View {
     @State private var settled: CGSize = .zero
     @State private var poked: Piece?
     @State private var confirmCrack = false
+    @State private var confirmToss = false
     @State private var pulse = false
 
     private let leash: CGFloat = 150
@@ -109,6 +110,12 @@ struct VaultMapView: View {
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                Buzz.tap(.medium)
+                poked = p
+            }
+        )
     }
 
     private func spot(_ p: Piece, around mid: CGPoint) -> CGPoint {
@@ -155,7 +162,9 @@ struct VaultMapView: View {
                     .font(Face.display(38))
                     .foregroundColor(Ink.past)
 
-                Text("The opening is in here and it stays hidden. Breaking the seal early works, but the piece carries the mark forever.")
+                Text(p.phase() == .ripe
+                     ? "This one is ready. Tap it on the map to open the ritual, or throw it out unread."
+                     : "The opening is in here and it stays hidden. Breaking the seal early works, but the piece carries the mark forever.")
                     .font(Face.body(13))
                     .foregroundColor(Ink.mute)
                     .lineSpacing(4)
@@ -163,10 +172,25 @@ struct VaultMapView: View {
 
                 Spacer(minLength: 0)
 
-                Button("Break the seal now") { confirmCrack = true }
-                    .buttonStyle(PressIn(tint: Ink.past))
+                if p.phase() == .sealed {
+                    Button("Break the seal now") { confirmCrack = true }
+                        .buttonStyle(PressIn(tint: Ink.past))
+                }
+
+                Button("Throw it out unread") { confirmToss = true }
+                    .buttonStyle(Ghost())
+                    .frame(maxWidth: .infinity)
             }
             .padding(24)
+            .alert("Throw it out unread?", isPresented: $confirmToss) {
+                Button("Keep it", role: .cancel) { }
+                Button("Throw it out", role: .destructive) {
+                    vault.discard(p.id)
+                    poked = nil
+                }
+            } message: {
+                Text("You will never find out what you wrote. It is deleted without being shown.")
+            }
         }
         .alert("Break it early?", isPresented: $confirmCrack) {
             Button("Cancel", role: .cancel) { }

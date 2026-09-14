@@ -17,6 +17,7 @@ struct ShelfView: View {
     @EnvironmentObject private var deck: Deck
 
     @State private var order: Order = .fresh
+    @State private var doomed: Piece?
 
     private let cols = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
 
@@ -58,6 +59,19 @@ struct ShelfView: View {
             .padding(.top, 12)
             .padding(.bottom, 130)
         }
+        .alert(
+            "Throw it out?",
+            isPresented: Binding(get: { doomed != nil }, set: { if !$0 { doomed = nil } }),
+            presenting: doomed
+        ) { p in
+            Button("Keep it", role: .cancel) { doomed = nil }
+            Button("Throw it out", role: .destructive) {
+                vault.discard(p.id)
+                doomed = nil
+            }
+        } message: { _ in
+            Text("The opening, the ending and the drift go with it. Nothing is kept anywhere else.")
+        }
     }
 
     private var nextLine: String {
@@ -92,5 +106,10 @@ struct ShelfView: View {
             .offset(y: column % 2 == 1 ? 10 : 0)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button("Read it") { deck.read(p.id, from: .shelf) }
+            ShareLink("Share it", item: p.asText(signedBy: vault.author?.alias ?? "someone"))
+            Button("Throw it out", role: .destructive) { doomed = p }
+        }
     }
 }

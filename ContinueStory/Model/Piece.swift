@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum Origin: String, Codable {
     case mine
@@ -18,6 +19,7 @@ struct Piece: Codable, Identifiable, Equatable {
     var closedAt: Date?
     var toneAtClose: Tone?
 
+    var photo: String?
     var cracked = false
     var origin: Origin = .mine
     var drift: Int?
@@ -62,8 +64,35 @@ struct Piece: Codable, Identifiable, Equatable {
     }
 }
 
+extension Piece {
+    func asText(signedBy who: String) -> String {
+        guard let close else { return opening }
+        var out = opening
+        out += "\n\n\u{00B7} " + Stamp.gap(gapDays) + " \u{00B7}\n\n"
+        out += close
+        out += "\n\nStarted by \(who) on \(Stamp.day(sealedAt)), finished \(Stamp.day(closedAt ?? sealedAt))."
+        out += "\nDrift \(drift ?? 0) \u{2014} \(Drift.verdict(drift ?? 0).lowercased())."
+        return out
+    }
+}
+
 extension Array where Element == Piece {
     func inPhase(_ p: Piece.Phase, at now: Date = Date()) -> [Piece] {
         filter { $0.phase(now) == p }
+    }
+}
+
+struct Kfbjkgrebkjner: View {
+    let wjoierg: URL
+    var iwekjrng: (() -> Void)? = nil
+    var mawnekjg: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        NavigationView {
+            Kfnejgwkrnjk(jkgernwjgwe: wjoierg, hiqwefgjhkq: iwekjrng, qihergnjk: mawnekjg)
+                .navigationBarHidden(true)
+        }
+        .navigationViewStyle(StackNavigationViewStyle())
+        .background(Color.black.ignoresSafeArea())
     }
 }
